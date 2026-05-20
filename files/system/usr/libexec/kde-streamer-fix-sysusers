@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Materialize aurora's sysusers (plasmalogin, plasma-setup, and the standard
+# audio/video/... groups) into /etc so PAM can resolve them at display-manager
+# boot.
+#
+# Why this exists at runtime (not just build):
+#   On a fresh install, writing entries to /etc at build time works: the OCI
+#   image's /etc becomes /usr/etc, and on first deploy OSTree seeds /etc from
+#   /usr/etc. But on a *rebase*, OSTree's 3-way merge of /etc preserves the
+#   previous deployment's /etc/passwd and does NOT pull in new entries that
+#   appeared in /usr/etc/passwd. So the build-time fix is invisible to the
+#   running system after a rebase. This script fixes that idempotently every
+#   boot, before plasmalogin.service.
+#
+# Build-time use: the bluebuild script module invokes this same file so the
+# image is also correct for fresh installs.
+set -euo pipefail
+
+USERS_TO_COPY=(plasmalogin plasma-setup)
+GROUPS_TO_COPY=(plasmalogin plasma-setup audio video input tty disk render kvm sgx cdrom)
+SHADOW_USERS=(plasmalogin plasma-setup)
+
+changed=0
+
+copy_entry() {
+    local name="$1" src="$2" dst="$3" label="$4"
+    if grep -q "^${name}:" "$dst" 2>/dev/null; then
+        return 0
+    fi
+    local line
+    line="$(grep "^${name}:" "$src" 2>/dev/null || true)"
+    if [[ -z "$line" ]]; then
+        echo "  ${label}: WARN ${name} not in ${src} -- skipping" >&2
+        return 0
+    fi
+    echo "  ${label}: adding ${name} to ${dst}"
+    echo "$line" >> "$dst"
+    changed=1
+}
+
+for u in "${USERS_TO_COPY[@]}"; do
+    copy_entry "$u" /usr/lib/passwd /etc/passwd "passwd"
+done
+
+for g in "${GROUPS_TO_COPY[@]}"; do
+    copy_entry "$g" /usr/lib/group /etc/group "group"
+done
+
+for u in "${SHADOW_USERS[@]}"; do
+    if ! grep -q "^${u}:" /etc/shadow 2>/dev/null; then
+        echo "  shadow: adding ${u} to /etc/shadow"
+        echo "${u}:!*:::::::" >> /etc/shadow
+        changed=1
+    fi
+    if ! grep -q "^${u}:" /etc/gshadow 2>/dev/null; then
+        echo "  gshadow: adding ${u} to /etc/gshadow"
+        echo "${u}:!*::" >> /etc/gshadow
+        changed=1
+    fi
+done
+
+# Tell aurora's own workaround service its job is done so it doesn't keep
+# attempting (and failing) at every boot.
+[[ -e /etc/.fedora-kinoite-plasmalogin-workaround ]] || touch /etc/.fedora-kinoite-plasmalogin-workaround
+
+if [[ $changed -eq 1 ]]; then
+    echo "kde-streamer-fix-sysusers: applied changes"
+fi

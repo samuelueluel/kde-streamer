@@ -25,6 +25,7 @@ modules:
     system:
       enabled:
         - uupd.timer
+        - kde-streamer-fix-sysusers.service
       disabled:
         - rpm-ostreed-automatic.timer
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=Materialize sysusers (plasmalogin, plasma-setup, ...) into /etc
+Documentation=file:///usr/libexec/kde-streamer-fix-sysusers
+After=systemd-tmpfiles-setup.service local-fs.target
+Before=plasmalogin.service systemd-user-sessions.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/kde-streamer-fix-sysusers
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
