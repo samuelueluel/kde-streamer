@@ -17,6 +17,10 @@ modules:
       packages:
         - tailscale
 
+  - type: script
+    scripts:
+      - fix-sysusers.sh
+
   - type: default-flatpaks
     configurations:
       - notify: true
