@@ -4,7 +4,7 @@ name: kde-streamer
 description: Aurora-based KDE image for TV streaming and media playback.
 
 base-image: ghcr.io/ublue-os/aurora
-image-version: 42
+image-version: 44
 
 modules:
   - type: files
