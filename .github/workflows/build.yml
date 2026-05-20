@@ -31,5 +31,6 @@ jobs:
         with:
           recipe: ${{ matrix.recipe }}
           registry_token: ${{ github.token }}
+          build_opts: --no-sign
           pr_event_number: ${{ github.event.number }}
           maximize_build_space: true
