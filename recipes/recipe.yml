@@ -23,7 +23,6 @@ modules:
         - uupd.timer
         - kde-streamer-sysusers.service
       disabled:
-        - flatpak-system-update.timer
         - rpm-ostreed-automatic.timer
 
   - type: default-flatpaks
