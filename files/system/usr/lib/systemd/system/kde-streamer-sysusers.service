@@ -1,0 +1,13 @@
+[Unit]
+Description=Initialize system users for plasmalogin
+Before=plasmalogin.service display-manager.service
+After=systemd-remount-fs.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=systemd-sysusers
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target
