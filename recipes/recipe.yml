@@ -4,7 +4,7 @@ name: kde-streamer
 description: Aurora-based KDE image for TV streaming and media playback.
 
 base-image: ghcr.io/ublue-os/aurora
-image-version: 44
+image-version: stable
 
 modules:
   - type: files
@@ -20,6 +20,14 @@ modules:
   - type: script
     scripts:
       - fix-sysusers.sh
+
+  - type: systemd
+    system:
+      enabled:
+        - uupd.timer
+      disabled:
+        - flatpak-system-update.timer
+        - rpm-ostreed-automatic.timer
 
   - type: default-flatpaks
     configurations:
