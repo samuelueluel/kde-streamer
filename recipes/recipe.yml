@@ -17,11 +17,14 @@ modules:
       packages:
         - tailscale
 
+  - type: script
+    scripts:
+      - fix-sysusers.sh
+
   - type: systemd
     system:
       enabled:
         - uupd.timer
-        - kde-streamer-sysusers.service
       disabled:
         - rpm-ostreed-automatic.timer
 
