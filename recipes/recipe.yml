@@ -18,23 +18,40 @@ modules:
         - tailscale
 
   - type: dnf
+    install:
+      install-weak-deps: false
+      packages:
+        - zsh
+        - zsh-autosuggestions
+        - zsh-syntax-highlighting
+        - chezmoi
+        - just
+
+  - type: dnf
     repos:
       copr:
         - imput/helium
+        - scottames/ghostty
     install:
       install-weak-deps: false
       packages:
         - helium
+        - ghostty
+        - gcc
+        - make
 
   - type: script
     scripts:
       - fix-sysusers.sh
+      - build-dotfiles.sh
+      - build-keyd.sh
 
   - type: systemd
     system:
       enabled:
         - uupd.timer
         - kde-streamer-fix-sysusers.service
+        - keyd.service
       disabled:
         - rpm-ostreed-automatic.timer
 
@@ -51,6 +68,7 @@ modules:
           - org.videolan.VLC
           - com.bitwarden.desktop
           - org.mozilla.firefox
+          - org.freedesktop.Platform.ffmpeg-full
       - notify: true
         scope: system
         repo:

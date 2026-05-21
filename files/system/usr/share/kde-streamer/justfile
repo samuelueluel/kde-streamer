@@ -1,0 +1,128 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+HOME  := env_var("HOME")
+SHARE := "/usr/share/kde-streamer"
+
+# List available recipes
+default:
+    @just --justfile /usr/share/kde-streamer/justfile --list --unsorted
+
+# Full setup — run everything in order
+setup: dirs chezmoi brew system
+    update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
+    @echo ""
+    @echo "Done. Manual steps remaining:"
+    @echo "  - Log out and back in for group changes to take effect"
+    @echo "  - Bitwarden: sign in"
+
+# Pre-create required directories
+dirs:
+    mkdir -p \
+        {{HOME}}/.local/bin \
+        {{HOME}}/.local/share/applications \
+        {{HOME}}/.local/share/zsh/plugins \
+        {{HOME}}/.config \
+        {{HOME}}/.ssh \
+        {{HOME}}/.npm-global/bin
+    chmod 700 {{HOME}}/.ssh
+
+# Deploy dotfiles from image snapshot, init chezmoi, apply
+chezmoi:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! -d "$HOME/dotfiles/.git" ]]; then
+        echo "Populating ~/dotfiles from image snapshot..."
+        rsync -a {{SHARE}}/dotfiles/ "$HOME/dotfiles/"
+    fi
+    chezmoi init --source="$HOME/dotfiles"
+    chezmoi apply --force
+    systemctl --user enable empty-trash.service 2>/dev/null || true
+
+# Fix Homebrew, install packages from ~/.Brewfile, install rtk and bbrew
+brew:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sudo rm -f /etc/.linuxbrew
+    sudo systemctl start brew-setup.service || true
+    sudo chown -R "$(whoami):wheel" /home/linuxbrew
+    sudo chmod -R g+rwX /home/linuxbrew
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    brew bundle --global
+    brew install gcc make
+    brew install rtk
+    rtk init -g --auto-patch || true
+    rtk init -g --gemini --auto-patch || true
+    BBREW_VERSION=$(curl -fsSL https://api.github.com/repos/Valkyrie00/bold-brew/releases/latest \
+        | grep '"tag_name"' | cut -d'"' -f4 | tr -d 'v')
+    BBREW_TMP=$(mktemp -d)
+    curl -L "https://github.com/Valkyrie00/bold-brew/releases/download/v${BBREW_VERSION}/bbrew_${BBREW_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C "$BBREW_TMP" \
+        && mv "$BBREW_TMP/bbrew" "$(brew --prefix)/bin/bbrew"
+    rm -rf "$BBREW_TMP"
+
+# Add user to all required groups and set zsh as default shell
+system:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ME="$(whoami)"
+
+    add_group() {
+        local grp="$1"
+        getent group "$grp" &>/dev/null || { echo "  skipping $grp (group not found)"; return; }
+        groups "$ME" | grep -qw "$grp" && return
+        sudo usermod -aG "$grp" "$ME"
+        echo "  added to $grp"
+    }
+
+    echo "Configuring group memberships..."
+    for grp in wheel libvirt kvm lp optical storage video input i2c systemd-journal; do
+        add_group "$grp"
+    done
+
+    ZSH_PATH="$(command -v zsh)"
+    [[ "$SHELL" == "$ZSH_PATH" ]] || sudo usermod -s "$ZSH_PATH" "$ME"
+
+# Configure SSH agent socket and load personal key (requires ~/.ssh/id_ed25519)
+ssh-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! -f "$HOME/.ssh/id_ed25519" ]]; then
+        echo "No ~/.ssh/id_ed25519 found — copy your key first."
+        exit 1
+    fi
+    systemctl --user enable --now ssh-agent.socket
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
+    SSH_ASKPASS_REQUIRE=never ssh-add ~/.ssh/id_ed25519
+    if ! grep -q 'ssh-add.*id_ed25519' "$HOME/.zshrc" 2>/dev/null; then
+        printf '\n# Auto-load SSH key on first terminal\n[[ -S "$SSH_AUTH_SOCK" ]] && { ssh-add -l &>/dev/null || SSH_ASKPASS_REQUIRE=never ssh-add ~/.ssh/id_ed25519; }\n' >> "$HOME/.zshrc"
+        echo "Added ssh-add auto-load to ~/.zshrc."
+    fi
+    echo "SSH agent socket enabled and key loaded."
+
+# System maintenance: image upgrade, flatpaks, brew, firmware
+update:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo -e "\n\033[34m=== System Health Check ===\033[0m"
+    systemctl --failed || true
+
+    echo -e "\n\033[34m=== Staging Image Update (bootc upgrade) ===\033[0m"
+    sudo bootc upgrade
+
+    echo -e "\n\033[34m=== Updating Flatpaks ===\033[0m"
+    flatpak update -y || true
+
+    echo -e "\n\033[34m=== Removing Unused Flatpak Runtimes ===\033[0m"
+    flatpak uninstall --unused -y || true
+
+    echo -e "\n\033[34m=== Updating Homebrew and Packages ===\033[0m"
+    if command -v brew >/dev/null; then
+        sudo chown -R "$(whoami):wheel" /home/linuxbrew 2>/dev/null || true
+        sudo chmod -R g+rwX /home/linuxbrew 2>/dev/null || true
+        brew update && brew upgrade && brew cleanup
+    fi
+
+    echo -e "\n\033[34m=== Checking Firmware Updates ===\033[0m"
+    fwupdmgr refresh && fwupdmgr get-updates || true
+
+    echo -e "\n\033[32mUpdate sequence complete!\033[0m"

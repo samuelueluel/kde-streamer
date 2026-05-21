@@ -1,0 +1,17 @@
+[Default Applications]
+x-scheme-handler/http=helium.desktop
+x-scheme-handler/https=helium.desktop
+x-scheme-handler/about=helium.desktop
+x-scheme-handler/unknown=helium.desktop
+text/html=helium.desktop
+application/xhtml+xml=helium.desktop
+application/xml=helium.desktop
+application/rdf+xml=helium.desktop
+application/rss+xml=helium.desktop
+application/pdf=helium.desktop
+
+[Added Associations]
+x-scheme-handler/http=helium.desktop
+x-scheme-handler/https=helium.desktop
+text/html=helium.desktop
+application/xhtml+xml=helium.desktop
