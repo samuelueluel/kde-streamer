@@ -46,8 +46,8 @@ modules:
           - io.bassi.Amberol
           - org.kde.gwenview
           - org.kde.dragonplayer
+          - org.kde.kweather
           - org.stellarium.Stellarium
-          - org.kde.kdeconnect
           - org.videolan.VLC
           - com.bitwarden.desktop
           - org.mozilla.firefox
