@@ -31,12 +31,10 @@ modules:
     repos:
       copr:
         - imput/helium
-        - scottames/ghostty
     install:
       install-weak-deps: false
       packages:
         - helium
-        - ghostty
         - gcc
         - make
 

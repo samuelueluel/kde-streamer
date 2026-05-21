@@ -8,7 +8,7 @@ default:
     @just --justfile /usr/share/kde-streamer/justfile --list --unsorted
 
 # Full setup — run everything in order
-setup: dirs chezmoi brew system
+setup: dirs dotfiles brew system
     update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
     @echo ""
     @echo "Done. Manual steps remaining:"
@@ -26,17 +26,13 @@ dirs:
         {{HOME}}/.npm-global/bin
     chmod 700 {{HOME}}/.ssh
 
-# Deploy dotfiles from image snapshot, init chezmoi, apply
-chezmoi:
+# Deploy zsh config and Brewfile from image snapshot
+dotfiles:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ ! -d "$HOME/dotfiles/.git" ]]; then
-        echo "Populating ~/dotfiles from image snapshot..."
-        rsync -a {{SHARE}}/dotfiles/ "$HOME/dotfiles/"
-    fi
-    chezmoi init --source="$HOME/dotfiles"
-    chezmoi apply --force
-    systemctl --user enable empty-trash.service 2>/dev/null || true
+    [[ -f "$HOME/.zshrc" ]]    || cp {{SHARE}}/dot_zshrc   "$HOME/.zshrc"
+    [[ -f "$HOME/.zshenv" ]]   || cp {{SHARE}}/dot_zshenv  "$HOME/.zshenv"
+    [[ -f "$HOME/.Brewfile" ]] || cp {{SHARE}}/dot_Brewfile "$HOME/.Brewfile"
 
 # Fix Homebrew, install packages from ~/.Brewfile, install rtk and bbrew
 brew:
