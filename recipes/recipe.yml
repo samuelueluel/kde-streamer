@@ -17,6 +17,15 @@ modules:
       packages:
         - tailscale
 
+  - type: dnf
+    repos:
+      copr:
+        - imput/helium
+    install:
+      install-weak-deps: false
+      packages:
+        - helium
+
   - type: script
     scripts:
       - fix-sysusers.sh
@@ -35,7 +44,13 @@ modules:
         scope: system
         install:
           - io.bassi.Amberol
-          - org.gnome.gThumb
+          - org.kde.gwenview
+          - org.kde.dragonplayer
+          - org.stellarium.Stellarium
+          - org.kde.kdeconnect
+          - org.videolan.VLC
+          - com.bitwarden.desktop
+          - org.mozilla.firefox
       - notify: true
         scope: system
         repo:
