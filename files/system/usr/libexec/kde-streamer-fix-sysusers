@@ -20,6 +20,20 @@ USERS_TO_COPY=(plasmalogin plasma-setup)
 GROUPS_TO_COPY=(plasmalogin plasma-setup audio video input tty disk render kvm sgx cdrom)
 SHADOW_USERS=(plasmalogin plasma-setup)
 
+# Ensure /etc is writable, remounting if necessary
+was_readonly=0
+if ! touch /etc/.writable_test 2>/dev/null; then
+    echo "kde-streamer-fix-sysusers: /etc is read-only, attempting to remount read-write..."
+    if mount -o remount,rw /etc 2>/dev/null; then
+        was_readonly=1
+        echo "kde-streamer-fix-sysusers: successfully remounted /etc read-write."
+    else
+        echo "kde-streamer-fix-sysusers: WARNING: failed to remount /etc read-write." >&2
+    fi
+else
+    rm -f /etc/.writable_test
+fi
+
 changed=0
 
 copy_entry() {
@@ -61,8 +75,18 @@ done
 
 # Tell aurora's own workaround service its job is done so it doesn't keep
 # attempting (and failing) at every boot.
-[[ -e /etc/.fedora-kinoite-plasmalogin-workaround ]] || touch /etc/.fedora-kinoite-plasmalogin-workaround
+[[ -e /etc/.fedora-kinoite-plasmalogin-workaround ]] || touch /etc/.fedora-kinoite-plasmalogin-workaround 2>/dev/null || true
 
 if [[ $changed -eq 1 ]]; then
     echo "kde-streamer-fix-sysusers: applied changes"
+fi
+
+# Restore /etc to read-only if we modified it
+if [[ $was_readonly -eq 1 ]]; then
+    echo "kde-streamer-fix-sysusers: restoring /etc to read-only..."
+    if mount -o remount,ro /etc 2>/dev/null; then
+        echo "kde-streamer-fix-sysusers: successfully restored /etc to read-only."
+    else
+        echo "kde-streamer-fix-sysusers: WARNING: failed to restore /etc to read-only." >&2
+    fi
 fi
